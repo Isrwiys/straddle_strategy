@@ -140,7 +140,7 @@ def cal_total_pnl(df_call_intraday, df_put_intraday):
 if __name__ == '__main__':
     #data = pd.read_csv('0-九象限策略构建/data/dh_ret50_new1.csv')
     initial = 10**7
-    data = pickle.loads(gzip.decompress(open('0-九象限策略构建/data/dh_ret50_new1.pkl.gz', 'rb').read()))
+    data = pickle.loads(gzip.decompress(open('0-九象限策略构建/data/SH510050_data.pkl.gz', 'rb').read()))
     data = generate_label_K(data)
     df_call_intraday = cal_oneside_pnl(data, call_or_put='认购')
     df_put_intraday = cal_oneside_pnl(data, call_or_put='认沽')

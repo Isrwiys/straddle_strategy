@@ -285,7 +285,6 @@ def import_index_1m_bidask(client, underlying_code, date):
                     '14:30:00','14:50:00','15:00:00') AND
                 StockID = '{underlying_code}' 
             ORDER BY datetime
-            LIMIT 20
         """
     else:
         sql = f"""
@@ -300,7 +299,6 @@ def import_index_1m_bidask(client, underlying_code, date):
                 StockID = '{underlying_code}' AND
                 toYYYYMMDD(datetime) = '{date}'
             ORDER BY datetime
-            LIMIT 20
         """
     index_1m_bidask = pd.DataFrame(client.execute(sql))
     index_1m_bidask.columns = get_columns(client, 'index_1m_bidask')
@@ -363,7 +361,7 @@ def import_data(client, underlying_code='SH510050',date = None):
     index_bidask.drop(columns='close', inplace=True)
     index_bidask.columns = ['{}_index'.format(col) if col not in ['datetime'] else col for col in index_bidask.columns]
     full_data = pd.merge(full_data_tmp, index_bidask, on=['datetime', 'StockID_index'])
-    full_data['cdays_to_expire']  = (full_data['expiry_date'].apply(trans_date) - full_data['date'].apply(lambda x: datetime.datetime(x)))
+    full_data['cdays_to_expire']  = (full_data['expiry_date'].apply(trans_date) - full_data['date'])
     full_data['T_calendar'] = full_data['cdays_to_expire'].apply(lambda x: x.days)/365
     full_data.loc[full_data['call_or_put']=='认购','call_or_put'] = 'call'
     full_data.loc[full_data['call_or_put']=='认沽','call_or_put'] = 'put'
@@ -419,17 +417,39 @@ def import_data(client, underlying_code='SH510050',date = None):
     full_data.sort_values(by=['datetime','StockID_option'],ascending=True,inplace=True)
     full_data.index.name='index'
     full_data= full_data.groupby('date').apply(generate_label)
-    full_data['time'] = full_data['datetime'].apply(lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S').time())
+    full_data['time'] = full_data['datetime'].apply(lambda x: x.time())
     return full_data
 
 if __name__ == '__main__':
-    underlying_code='SH510050'
+    underlying_code='SH000852'
+    #underlying_code='SH000852'
+    '''[('SZ399001', '深证成指'),
+        ('SZ399330', '深证100'),
+        ('SH000001', '上证指数'),
+        ('SH000016', '上证50'),
+        ('SH000300', '沪深300'),
+        ('SH510050', '50ETF'),
+        ('SZ159901', '深100ETF'),
+        ('SZ399006', '创业板指'),
+        ('SH000852', '中证1000'),
+        ('SH000905', '中证500'),
+        ('SH510300', '300ETF'),
+        ('SH510500', '500ETF'),
+        ('SZ159915', '创业板'),
+        ('SZ159919', '300ETF'),
+        ('SZ159922', '500ETF'),
+        ('SH000688', '科创50'),
+        ('SH588000', '科创50'),
+        ('SH588080', '科创板50'),
+        ('CSI932000', '中证2000')]'''
     #date = '20230718'  #只提取1天
     date = None    #历史所有期
     client = Client(host='62.234.171.209',user='RUC_QUANT_READER',password='ruc_quant_reader_2023')
     data = import_data(client, underlying_code,date)
     if date is None:
-        open('0-九象限策略构建/data/dh_ret50.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(data)))
+        #open('0-九象限策略构建/data/dh_ret50.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(data)))
+        open('0-九象限策略构建/data/'+underlying_code+'_data.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(data)))
+        #data.to_csv(underlying_code+'_data.csv')
     else:
         open('0-九象限策略构建/data/dh_ret50_'+date+'.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(data)))
 
