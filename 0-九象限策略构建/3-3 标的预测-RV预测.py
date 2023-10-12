@@ -6,6 +6,8 @@ from keras.layers import LSTM, Dense
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
+import gzip
 
 def gen_lstm_prediction(daily_data,target_var):
 
@@ -13,7 +15,20 @@ def gen_lstm_prediction(daily_data,target_var):
     daily_data.set_index('date', inplace=True)
     dates = daily_data.index[20:]
 
-    factors = daily_data[['open', 'high', 'low', 'close', 'volume', 'vwap', 'KMID', 'KLEN', 'KMID2', 'KUP', 'KUP2', 'KLOW', 'KLOW2', 'KSFT', 'KSFT2']].values
+    factors = daily_data[['KMID', 'KLEN', 'KMID2', 'KUP', 'KUP2', 'KLOW', 'KLOW2', 'KSFT', 'KSFT2', 'OPEN0', 'HIGH0',\
+                        'LOW0', 'VWAP0', 'ROC5', 'MA5', 'STD5', 'BETA5', 'RSQR5', 'RESI5', 'MAX5', 'MIN5', 'QTLU5', \
+                        'QTLD5', 'RANK5', 'RSV5', 'IMAX5', 'IMIN5', 'IMXD5', 'CORR5', 'CORD5', 'CNTP5', 'SUMP5', \
+                        'VMA5', 'VSTD5', 'WVMA5', 'VSUMP5', 'ROC10', 'MA10', 'STD10', 'BETA10', 'RSQR10', 'RESI10',\
+                        'MAX10', 'MIN10', 'QTLU10', 'QTLD10', 'RANK10', 'RSV10', 'IMAX10', 'IMIN10', 'IMXD10',\
+                        'CORR10', 'CORD10', 'CNTP10', 'SUMP10', 'VMA10', 'VSTD10', 'WVMA10', 'VSUMP10', 'ROC20', \
+                        'MA20', 'STD20', 'BETA20', 'RSQR20', 'RESI20', 'MAX20', 'MIN20', 'QTLU20', 'QTLD20', 'RANK20',\
+                            'RSV20', 'IMAX20', 'IMIN20', 'IMXD20', 'CORR20', 'CORD20', 'CNTP20', 'SUMP20', 'VMA20', \
+                        'VSTD20', 'WVMA20', 'VSUMP20', 'ROC30', 'MA30', 'STD30', 'BETA30', 'RSQR30', 'RESI30', 'MAX30',\
+                        'MIN30', 'QTLU30', 'QTLD30', 'RANK30', 'RSV30', 'IMAX30', 'IMIN30', 'IMXD30', 'CORR30',\
+                            'CORD30', 'CNTP30', 'SUMP30', 'VMA30', 'VSTD30', 'WVMA30', 'VSUMP30', 'ROC60', 'MA60', \
+                        'STD60', 'BETA60', 'RSQR60', 'RESI60', 'MAX60', 'MIN60', 'QTLU60', 'QTLD60', 'RANK60', 'RSV60', \
+                        'IMAX60', 'IMIN60', 'IMXD60', 'CORR60', 'CORD60', 'CNTP60', 'SUMP60', 'VMA60', 'VSTD60', 'WVMA60',\
+                            'VSUMP60']].fillna(method='bfill').values
     target = daily_data[target_var].values
 
     # 将数据重新形状为(samples, timesteps, features)
@@ -68,19 +83,21 @@ def gen_lstm_prediction(daily_data,target_var):
     return result
 
 if __name__ == '__main__':
-    data = pd.read_pickle('./data/factors.pkl.gz')
+    underlying_code = 'SH510050'
+    path = 'data/'+underlying_code+'_factors.pkl.gz'
+    data = pickle.loads(gzip.decompress(open(path, 'rb').read()))
     # 设置Date为index
     result_vol = gen_lstm_prediction(data,target_var='realized_volatility')
     result_vol.set_index('Date', inplace=True)
     result_vol.sort_index(inplace=True)
     # 画出真实的RV和预测的RV
     plt.figure(figsize=(12, 6))
-    plt.plot(result_vol['Prediction'], label="Predictions")
     plt.plot(result_vol['Ground Truth'], label="Ground Truth")
+    plt.plot(result_vol['Prediction'], label="Predictions")
     plt.legend()
     plt.xlabel("Date")
     plt.ylabel("realized volatility")
     plt.title("Realized Volatility Prediction using LSTM")
     plt.show()
-    result_vol.to_pickle('./data/RV_prediction.pkl.gz')
+    open('data/'+underlying_code+'_rv_prediction.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(result_vol)))
     print("RV预测完毕！")

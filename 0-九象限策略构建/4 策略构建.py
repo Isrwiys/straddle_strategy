@@ -1,17 +1,24 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
+import gzip
 
-pnl = pd.read_pickle(r"C:\Users\Yue\Desktop\衍生品\dh_ret\df_pnl (2).pickle")
+underlying_code = 'SH510050'
+path = 'data/'+underlying_code+'_pnl.pkl.gz'
+pnl = pickle.loads(gzip.decompress(open(path, 'rb').read()))
 pnl.reset_index(inplace=True)
 pnl['date'] = pd.to_datetime(pnl['date'].astype(str))
 pnl.drop_duplicates(subset=['date'],inplace=True)
-pnl
 
-full_data = pd.merge(daily_data,pnl,on='date',how='left')
+full_data = pickle.loads(gzip.decompress(open('data/'+underlying_code+'_pnl.pkl.gz', 'rb').read())).sort_index()
+result_ret = pickle.loads(gzip.decompress(open('data/'+underlying_code+'_return_prediction.pkl.gz', 'rb').read()))
+result_vol = pickle.loads(gzip.decompress(open('data/'+underlying_code+'_rv_prediction.pkl.gz', 'rb').read()))
+
+#full_data = pd.merge(daily_data,pnl,on='date',how='left')
 full_data.dropna(inplace=True)
 
-full_data['日期'] = full_data['date']
+full_data['日期'] = full_data.index
 full_data['卖购收益'] = full_data['call_pnl']
 full_data['卖沽收益'] = full_data['put_pnl']
 full_data['双卖收益'] = full_data['pnl']
@@ -20,9 +27,13 @@ full_data['买沽收益'] = - (full_data['put_pnl'] - 1.8) - 1.8
 full_data['双买收益'] = - (full_data['pnl'] - 3.6) - 3.6
 
 # 合并预测数据和真实数据
-full_prediction_result = pd.merge(full_data, result_ret, left_on=full_data['date'], right_on='Date', how='left')
-full_prediction_result = pd.merge(full_prediction_result, result_vol, left_on='Date', right_on='Date', how='left')
-full_prediction_result
+#full_prediction_result = pd.merge(full_data, result_ret, left_index=True, right_on='Date', how='left')
+#full_prediction_result = pd.merge(full_prediction_result, result_vol, left_index=True, right_on='Date', how='left')
+full_prediction_result = full_data.copy()
+full_prediction_result['Prediction_ret'] = result_ret['Prediction']
+full_prediction_result['true_ret'] = result_ret['Ground Truth']
+full_prediction_result['Prediction_vol'] = result_vol['Prediction']
+full_prediction_result['true_vol'] = result_vol['Ground Truth']
 
 # 确定滚动窗口大小
 window_size = 20
@@ -90,7 +101,7 @@ full_prediction_result['策略2收益'] = full_prediction_result.apply(strategy2
 full_prediction_result['策略3收益'] = full_prediction_result.apply(strategy3, axis=1)
 
 full_prediction_result.index = full_prediction_result['日期']
-test = full_prediction_result.loc[(full_prediction_result['日期']>=pd.to_datetime('2020-01-01'))]
+test = full_prediction_result.loc[(full_prediction_result['日期']>=pd.to_datetime('2019-01-01'))]
 # 然后画出'双卖收益'的累积和
 plt.plot(10000+test['双卖收益'].cumsum(), label='straddle')
 plt.plot(10000+test['策略3收益'].cumsum(), label='strategy 1')

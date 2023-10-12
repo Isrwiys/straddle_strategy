@@ -12,7 +12,7 @@ import gzip
 def gen_lstm_prediction(daily_data,target_var='daily_return_ctc'):
     # 保存日期列
     daily_data.set_index('date', inplace=True)
-    dates = daily_data.index[60:]
+    dates = daily_data.index[20:]
 
 
     #为什么加入128个因子预测出来就是空值？
@@ -30,12 +30,12 @@ def gen_lstm_prediction(daily_data,target_var='daily_return_ctc'):
                              'CORD30', 'CNTP30', 'SUMP30', 'VMA30', 'VSTD30', 'WVMA30', 'VSUMP30', 'ROC60', 'MA60', \
                             'STD60', 'BETA60', 'RSQR60', 'RESI60', 'MAX60', 'MIN60', 'QTLU60', 'QTLD60', 'RANK60', 'RSV60', \
                             'IMAX60', 'IMIN60', 'IMXD60', 'CORR60', 'CORD60', 'CNTP60', 'SUMP60', 'VMA60', 'VSTD60', 'WVMA60',\
-                             'VSUMP60']].values
-    target = daily_data['daily_return_ctc'].shift(-1).values
+                             'VSUMP60']].fillna(method='bfill').values
+    target = daily_data['daily_return_ctc'].values
 
     # 将数据重新形状为(samples, timesteps, features)
-    data = np.array([factors[i-60:i] for i in range(60, len(factors))])
-    target = target[60:]
+    data = np.array([factors[i-20:i] for i in range(20, len(factors))])
+    target = target[20:]
 
     # 找到2019年的索引位置
     split_index = np.where(dates.year == 2019)[0][0]
