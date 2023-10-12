@@ -1,3 +1,7 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
 pnl = pd.read_pickle(r"C:\Users\Yue\Desktop\衍生品\dh_ret\df_pnl (2).pickle")
 pnl.reset_index(inplace=True)
 pnl['date'] = pd.to_datetime(pnl['date'].astype(str))
@@ -53,14 +57,14 @@ def strategy1(row):
             return row['卖沽收益']
     elif row['涨跌标签']=='价格不变':
         if row['波动率标签']=='波动率较大':
-            return row['双买收益']  # 我假设你有一个名为'双卖收益'的列
+            return row['双买收益'] 
         elif row['波动率标签']=='波动率适中' or row['波动率标签']=='波动率较小':
-            return row['双卖收益']  # 我假设你有一个名为'双卖收益'的列
+            return row['双卖收益'] 
     elif row['涨跌标签']=='价格下跌':
         if row['波动率标签']=='波动率较大':
-            return row['买沽收益']  # 我假设你有一个名为'买沽收益'的列
+            return row['买沽收益']  
         elif row['波动率标签']=='波动率适中' or row['波动率标签']=='波动率较小':
-            return row['卖购收益']  # 我假设你有一个名为'卖购收益'的列
+            return row['卖购收益']  
     else:
         return row['put_pnl']
     

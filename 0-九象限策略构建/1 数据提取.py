@@ -239,6 +239,20 @@ def import_index_1m(client, underlying_code, date):
     index_hh.columns.name = ''
     return index_hh
 
+
+def save_index_1m(client, underlying_code, date):
+
+    sql = f"""
+        SELECT * FROM backbone.index_1m 
+        WHERE StockID = '{underlying_code}'
+        ORDER BY datetime DESC
+    """
+    index_hh = pd.DataFrame(client.execute(sql))
+    index_hh.columns = get_columns(client, 'index_1m')
+    index_hh.columns.name = ''
+    #存储index_hh
+    open('data/'+underlying_code+'_index_hh.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(index_hh)))
+
 def import_option_1m_bidask(client, stock_ids_str, date):
     if date is None:
         sql = f"""
@@ -346,6 +360,8 @@ def import_data(client, underlying_code='SH510050',date = None):
 
     # 获取标的数据
     index_hh = import_index_1m(client, underlying_code, date)
+
+
     # 合并期权和标的数据
     option_and_index = pd.merge(index_hh, option_data, left_on='datetime', right_on='datetime', how='inner', suffixes=('_index', '_option'))
     # 获取期权买卖价格数据
@@ -418,11 +434,14 @@ def import_data(client, underlying_code='SH510050',date = None):
     full_data.index.name='index'
     full_data= full_data.groupby('date').apply(generate_label)
     full_data['time'] = full_data['datetime'].apply(lambda x: x.time())
+
+
+
     return full_data
 
 if __name__ == '__main__':
-    underlying_code='SH000852'
-    #underlying_code='SH000852'
+    underlying_code='SH510050'
+    #for underlying_code in ['SH000016','SH000852','SH510050','SH510300','SH510500','SH588000','SZ159901','SZ159915']:
     '''[('SZ399001', '深证成指'),
         ('SZ399330', '深证100'),
         ('SH000001', '上证指数'),
@@ -445,11 +464,15 @@ if __name__ == '__main__':
     #date = '20230718'  #只提取1天
     date = None    #历史所有期
     client = Client(host='62.234.171.209',user='RUC_QUANT_READER',password='ruc_quant_reader_2023')
-    data = import_data(client, underlying_code,date)
-    if date is None:
-        #open('0-九象限策略构建/data/dh_ret50.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(data)))
-        open('0-九象限策略构建/data/'+underlying_code+'_data.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(data)))
-        #data.to_csv(underlying_code+'_data.csv')
-    else:
-        open('0-九象限策略构建/data/dh_ret50_'+date+'.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(data)))
+    # data = import_data(client, underlying_code,date)
+    # if date is None:
+    #     #open('0-九象限策略构建/data/dh_ret50.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(data)))
+    #     open('0-九象限策略构建/data/'+underlying_code+'_data.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(data)))
+    #     #data.to_csv(underlying_code+'_data.csv')
+    # else:
+    #     open('0-九象限策略构建/data/dh_ret50_'+date+'.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(data)))
+    
+    
+    save_index_1m(client,underlying_code,date=None)
+
 

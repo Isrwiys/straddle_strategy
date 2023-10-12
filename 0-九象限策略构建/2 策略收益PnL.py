@@ -74,11 +74,11 @@ def generate_label_K(x,call = True):
 def select_data(data, call_or_put, time):
     data_selected = data[data['time']==datetime.strptime(time, '%H:%M:%S').time()]
     data_selected = data_selected[data_selected['call_or_put']==call_or_put]     #只保留看涨期权
-    data_selected['k_minus_s'] = data_selected['exercise_price']-data_selected['index_close_mid']
+    data_selected['k_minus_s'] = data_selected['exercise_price']-data_selected['close_mid_index']
     data_selected= data_selected[data_selected['k_minus_s']>0].groupby(['datetime','当月标签']).apply(generate_label_K)
     data_selected = data_selected[data_selected['虚值档'].notna()]
-    data_selected['month'] = [datetime.strptime(i, '%Y-%m-%d %H:%M:%S').month for i in data_selected['datetime']]
-    data_selected['year'] = [datetime.strptime(i, '%Y-%m-%d %H:%M:%S').year for i in data_selected['datetime']]
+    data_selected['month'] = [i.month for i in data_selected['datetime']]
+    data_selected['year'] = [i.year for i in data_selected['datetime']]
     data_selected['year_month'] =  data_selected['year']*100+data_selected['month']
     data_selected['expiry_date'] = data_selected['expiry_date'].astype(int).apply(trans_date)
     return data_selected
@@ -92,23 +92,23 @@ def cal_oneside_pnl(data, call_or_put):
     df_intraday = pd.DataFrame(pd.concat([data_0940[['datetime','date']],data_1500[['datetime','date']]]).drop_duplicates()).sort_index().reset_index()[['datetime','date']].set_index('datetime')
     #df_intraday['date'] =[datetime.date(datetime.strptime(i, '%Y-%m-%d %H:%M:%S').year,datetime.strptime(i, '%Y-%m-%d %H:%M:%S').month,datetime.strptime(i, '%Y-%m-%d %H:%M:%S').day) for i in df_intraday.index] 
     for dt in df_intraday.index:
-        temp = data_0940.loc[(data_0940['datetime']==dt)&(data_0940['当月标签']=='当月')&(data_0940['虚值档']=='平值'),['price_mid','StockID','settle','index_close_mid','exercise_price','multiplier']]
+        temp = data_0940.loc[(data_0940['datetime']==dt)&(data_0940['当月标签']=='当月')&(data_0940['虚值档']=='平值'),['close_mid_option','StockID_option','settle','close_mid_index','exercise_price','multiplier']]
         if(len(temp)>0):
-            df_intraday.loc[dt,['price_mid','StockID','settle','index_close_mid','exercise_price','multiplier']] = temp.iloc[0]
+            df_intraday.loc[dt,['close_mid_option','StockID_option','settle','close_mid_index','exercise_price','multiplier']] = temp.iloc[0]
             #如果剩余到期日小于等于7天
-            if((data_0940.loc[(data_0940['datetime']==dt)&(data_0940['当月标签']=='当月')&(data_0940['虚值档']=='平值'),'expiry_date'].iloc[0] - datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')).days)<=7:
-                temp = data_0940.loc[(data_0940['datetime']==dt)&(data_0940['当月标签']=='下月')&(data_0940['虚值档']=='平值'),['price_mid','StockID','settle','index_close_mid','exercise_price','multiplier']]
-                df_intraday.loc[dt,['price_mid','StockID','settle','index_close_mid','exercise_price','multiplier']] = temp.iloc[0] if len(temp)>0 else np.nan
-    df_intraday['StockID'] = df_intraday['StockID'].ffill(limit=1)
+            if((data_0940.loc[(data_0940['datetime']==dt)&(data_0940['当月标签']=='当月')&(data_0940['虚值档']=='平值'),'expiry_date'].iloc[0] - dt).days)<=7:
+                temp = data_0940.loc[(data_0940['datetime']==dt)&(data_0940['当月标签']=='下月')&(data_0940['虚值档']=='平值'),['close_mid_option','StockID_option','settle','close_mid_index','exercise_price','multiplier']]
+                df_intraday.loc[dt,['close_mid_option','StockID_option','settle','close_mid_index','exercise_price','multiplier']] = temp.iloc[0] if len(temp)>0 else np.nan
+    df_intraday['StockID_option'] = df_intraday['StockID_option'].ffill(limit=1)
     data_temp = data[data['time']==datetime.strptime('15:00:00', '%H:%M:%S').time()]
-    data_temp = data_temp[data_temp['call_or_put']=='认购'] 
+    data_temp = data_temp[data_temp['call_or_put']==call_or_put] 
     for dt in data_1500['datetime'].drop_duplicates().sort_values().to_list():
-        StockID = df_intraday.loc[dt,'StockID']
-        temp = data_temp.loc[(data_temp['datetime']==dt)&(data_temp['StockID']==StockID),['price_mid','settle','index_close_mid','exercise_price','multiplier']]
-        df_intraday.loc[dt,['price_mid','settle','index_close_mid','exercise_price','multiplier']] = temp.iloc[0] if (len(temp) > 0) else np.nan
-    df_intraday['time'] = df_intraday.index.to_series().apply(lambda x : datetime.strptime(x, '%Y-%m-%d %H:%M:%S').hour)  #区分开盘和收盘 
-    df_intraday[['last_settle','last_underlying_close']] = df_intraday.sort_index().groupby('time').shift(1)[['settle','index_close_mid']]  #昨日合约结算价 和 昨日标的收盘价
-    df_intraday['margin'] = df_intraday.apply(lambda x: calc_margin(contract_type='认购', contract_settle=x['last_settle'], underlying_close=x['index_close_mid'], strike=x['exercise_price'], contract_unit=x['multiplier']) ,axis = 1)
+        StockID_option = df_intraday.loc[dt,'StockID_option']
+        temp = data_temp.loc[(data_temp['datetime']==dt)&(data_temp['StockID_option']==StockID_option),['close_mid_option','settle','close_mid_index','exercise_price','multiplier']]
+        df_intraday.loc[dt,['close_mid_option','settle','close_mid_index','exercise_price','multiplier']] = temp.iloc[0] if (len(temp) > 0) else np.nan
+    df_intraday['time'] = df_intraday.index.to_series().apply(lambda x : x.hour)  #区分开盘和收盘 
+    df_intraday[['last_settle','last_underlying_close']] = df_intraday.sort_index().groupby('time').shift(1)[['settle','close_mid_index']]  #昨日合约结算价 和 昨日标的收盘价
+    df_intraday['margin'] = df_intraday.apply(lambda x: calc_margin(contract_type='认购', contract_settle=x['last_settle'], underlying_close=x['close_mid_index'], strike=x['exercise_price'], contract_unit=x['multiplier']) ,axis = 1)
     df_intraday.loc[df_intraday['time']==15,'margin'] = np.nan #只保留开仓时候算的保证金
     #df_intraday['sell_lots'] = initial*0.6//df_intraday['margin']   #卖出的期权手数, 取整
     #df_intraday.loc[df_intraday['time']==15,'sell_lots'] = np.nan #只保留开仓时候算的卖出手数 
@@ -120,7 +120,7 @@ def cal_total_pnl(df_call_intraday, df_put_intraday):
         condition_open = (df_call_intraday['date']==date)&(df_call_intraday['time']==9)
         condition_close = (df_call_intraday['date']==date)&(df_call_intraday['time']==15)
         try:
-            df_pnl.loc[date,'call_pnl'] = -(float(df_call_intraday.loc[condition_close,'price_mid'])*float(df_call_intraday.loc[condition_close,'multiplier']) - float(df_call_intraday.loc[condition_open,'price_mid'])*float(df_call_intraday.loc[condition_close,'multiplier'])) - 3.6
+            df_pnl.loc[date,'call_pnl'] = -(float(df_call_intraday.loc[condition_close,'close_mid_option'])*float(df_call_intraday.loc[condition_close,'multiplier']) - float(df_call_intraday.loc[condition_open,'close_mid_option'])*float(df_call_intraday.loc[condition_close,'multiplier'])) - 3.6
             df_pnl.loc[date,'call_margin'] = float(df_call_intraday.loc[condition_open, 'margin'])
         except:
             pass
@@ -129,7 +129,7 @@ def cal_total_pnl(df_call_intraday, df_put_intraday):
         condition_close = (df_put_intraday['date']==date)&(df_put_intraday['time']==15)
         try:
             #交易一手的PNL
-            df_pnl.loc[date,'put_pnl'] = -(float(df_put_intraday.loc[condition_close,'price_mid'])*float(df_put_intraday.loc[condition_close,'multiplier']) - float(df_put_intraday.loc[condition_open,'price_mid'])*float(df_put_intraday.loc[condition_close,'multiplier'])) - 3.6
+            df_pnl.loc[date,'put_pnl'] = -(float(df_put_intraday.loc[condition_close,'close_mid_option'])*float(df_put_intraday.loc[condition_close,'multiplier']) - float(df_put_intraday.loc[condition_open,'close_mid_option'])*float(df_put_intraday.loc[condition_close,'multiplier'])) - 3.6
             df_pnl.loc[date,'put_margin'] = float(df_put_intraday.loc[condition_open, 'margin'])
         except:
             pass
@@ -140,13 +140,16 @@ def cal_total_pnl(df_call_intraday, df_put_intraday):
 if __name__ == '__main__':
     #data = pd.read_csv('0-九象限策略构建/data/dh_ret50_new1.csv')
     initial = 10**7
-    data = pickle.loads(gzip.decompress(open('0-九象限策略构建/data/SH510050_data.pkl.gz', 'rb').read()))
-    data = generate_label_K(data)
-    df_call_intraday = cal_oneside_pnl(data, call_or_put='认购')
-    df_put_intraday = cal_oneside_pnl(data, call_or_put='认沽')
-    df_pnl = cal_total_pnl(df_call_intraday, df_put_intraday)
-    df_pnl['ret'] = df_pnl['pnl']/initial
-    open('data/df_pnl.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(df_pnl)))
+    for code in ['SH000016','SH000852','SH510050','SH510300','SH510500','SH588000','SZ159901','SZ159915']:
+        #data = pickle.loads(gzip.decompress(open('0-九象限策略构建/data/SH510050_data.pkl.gz', 'rb').read()))
+        data = pickle.loads(gzip.decompress(open('data/'+code+'_data.pkl.gz', 'rb').read()))
+        data = generate_label_K(data)
+        df_call_intraday = cal_oneside_pnl(data, call_or_put='call')
+        df_put_intraday = cal_oneside_pnl(data, call_or_put='put')
+        df_pnl = cal_total_pnl(df_call_intraday, df_put_intraday)
+        df_pnl['ret'] = df_pnl['pnl']/initial
+        #open('data/df_pnl.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(df_pnl)))
+        open('data/'+code+'_pnl.pkl.gz', 'wb').write(gzip.compress(pickle.dumps(df_pnl)))
 
 
 
